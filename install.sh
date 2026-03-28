@@ -15,7 +15,7 @@ SERVICE_NAME="shadowsocks-rust-server"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 BINARY_NAMES=("ssserver" "sslocal" "ssmanager" "ssurl" "ssservice")
 DEFAULT_PORT=8388
-SCRIPT_VERSION="1.2.0"
+SCRIPT_VERSION="1.3.0"
 DEFAULT_CIPHER="2022-blake3-aes-256-gcm"
 TEMP_DIR=""
 
@@ -306,7 +306,7 @@ download_and_install() {
 # --- Interactive Configuration ------------------------------------------------
 
 prompt_cipher() {
-    msg_step "[Step 2/9] Select Encryption Cipher"
+    msg_step "[Step 2/10] Select Encryption Cipher"
     echo ""
     echo "  1) 2022-blake3-aes-128-gcm     (16-byte key, fast on AES-NI hardware)"
     echo "  2) 2022-blake3-aes-256-gcm     (32-byte key, recommended)"
@@ -331,7 +331,7 @@ prompt_cipher() {
 }
 
 prompt_port() {
-    msg_step "[Step 3/9] Configure Server Port"
+    msg_step "[Step 3/10] Configure Server Port"
     echo ""
 
     local port
@@ -361,7 +361,7 @@ generate_psk() {
 }
 
 confirm_settings() {
-    msg_step "[Step 4/9] Confirm Settings"
+    msg_step "[Step 4/10] Confirm Settings"
     echo ""
     echo -e "  Cipher : ${BOLD}${CIPHER}${NC}"
     echo -e "  Port   : ${BOLD}${SERVER_PORT}${NC}"
@@ -375,7 +375,7 @@ confirm_settings() {
 }
 
 create_config() {
-    msg_step "[Step 6/9] Generating Configuration"
+    msg_step "[Step 6/10] Generating Configuration"
 
     generate_psk
 
@@ -399,7 +399,7 @@ EOF
 # --- Systemd Service ----------------------------------------------------------
 
 setup_systemd() {
-    msg_step "[Step 7/9] Setting Up Systemd Service"
+    msg_step "[Step 7/10] Setting Up Systemd Service"
 
     if ! pidof systemd &>/dev/null && ! systemctl --version &>/dev/null 2>&1; then
         msg_warn "systemd not detected. Skipping service setup."
@@ -445,7 +445,7 @@ EOF
 # --- Firewall -----------------------------------------------------------------
 
 configure_firewall() {
-    msg_step "[Step 8/9] Firewall Configuration"
+    msg_step "[Step 8/10] Firewall Configuration"
     echo ""
 
     if ! confirm "Configure firewall to open port ${SERVER_PORT}?"; then
@@ -515,7 +515,7 @@ show_connection_info() {
     get_public_ip
     generate_ss_uri
 
-    msg_step "[Step 9/9] Connection Information"
+    msg_step "[Step 10/10] Connection Information"
     echo ""
     echo -e "  ${BOLD}Server IP${NC}  : ${SERVER_IP}"
     echo -e "  ${BOLD}Port${NC}       : ${SERVER_PORT}"
@@ -656,13 +656,23 @@ uninstall() {
         fi
     fi
 
+    # Remove installer script
+    if [[ -f /usr/bin/ss-installer ]]; then
+        if confirm "Remove /usr/bin/ss-installer?"; then
+            rm -f /usr/bin/ss-installer
+            msg_info "Installer script removed."
+        else
+            msg_info "Installer script kept at /usr/bin/ss-installer."
+        fi
+    fi
+
     msg_success "Shadowsocks-Rust has been uninstalled."
 }
 
 # --- Install Flow (Wizard) ----------------------------------------------------
 
 install_flow() {
-    msg_step "[Step 1/9] System Detection"
+    msg_step "[Step 1/10] System Detection"
     echo ""
     echo -e "  Distro : ${BOLD}${DISTRO_NAME}${NC} (${DISTRO_FAMILY})"
     echo -e "  Arch   : ${BOLD}${ARCH}${NC}"
@@ -678,16 +688,38 @@ install_flow() {
     prompt_port
     confirm_settings
 
-    msg_step "[Step 5/9] Downloading & Installing"
+    msg_step "[Step 5/10] Downloading & Installing"
     get_latest_version
     download_and_install
 
     create_config
     setup_systemd
     configure_firewall
+    prompt_install_script
     show_connection_info
 
     msg_success "Installation complete!"
+}
+
+# --- Install Script to /usr/bin ------------------------------------------------
+
+install_script() {
+    local target="/usr/bin/ss-installer"
+    local source="${BASH_SOURCE[0]}"
+
+    install -m 755 "${source}" "${target}"
+    msg_success "Script installed to ${target}"
+    msg_info "You can now run: ss-installer"
+}
+
+prompt_install_script() {
+    msg_step "[Step 9/10] Install Script"
+    echo ""
+    if confirm "Install this script to /usr/bin/ss-installer for easy access?"; then
+        install_script
+    else
+        msg_info "Skipped."
+    fi
 }
 
 # --- Main Menu ----------------------------------------------------------------
@@ -711,25 +743,54 @@ main() {
         show_existing_config || true
 
         echo -e "${BOLD}Menu:${NC}"
-        echo "  1) Reinstall / Reconfigure"
-        echo "  2) Uninstall Shadowsocks 2022"
-        echo "  3) Exit"
+        echo "  1) Start service"
+        echo "  2) Stop service"
+        echo "  3) Restart service"
+        echo "  4) Enable auto-start on boot"
+        echo "  5) Disable auto-start on boot"
+        echo "  6) Install this script to /usr/bin/ss-installer"
+        echo "  7) Reinstall / Reconfigure"
+        echo "  8) Uninstall Shadowsocks 2022"
+        echo "  9) Exit"
         echo ""
 
         local choice
-        read -r -p "$(echo -e "Select option ${BOLD}[default: 3]${NC} > ")" choice
-        choice="${choice:-3}"
+        read -r -p "$(echo -e "Select option ${BOLD}[default: 9]${NC} > ")" choice
+        choice="${choice:-9}"
 
         case "${choice}" in
             1)
-                install_flow
+                systemctl start "${SERVICE_NAME}"
+                msg_success "Service started."
                 ;;
             2)
+                systemctl stop "${SERVICE_NAME}"
+                msg_success "Service stopped."
+                ;;
+            3)
+                systemctl restart "${SERVICE_NAME}"
+                msg_success "Service restarted."
+                ;;
+            4)
+                systemctl enable "${SERVICE_NAME}" --quiet
+                msg_success "Auto-start enabled."
+                ;;
+            5)
+                systemctl disable "${SERVICE_NAME}" --quiet
+                msg_success "Auto-start disabled."
+                ;;
+            6)
+                install_script
+                ;;
+            7)
+                install_flow
+                ;;
+            8)
                 if confirm "Are you sure you want to uninstall?"; then
                     uninstall
                 fi
                 ;;
-            3)
+            9)
                 msg_info "Goodbye!"
                 exit 0
                 ;;
@@ -741,7 +802,8 @@ main() {
     else
         echo -e "${BOLD}Menu:${NC}"
         echo "  1) Install Shadowsocks 2022"
-        echo "  2) Exit"
+        echo "  2) Install this script to /usr/bin/ss-installer"
+        echo "  3) Exit"
         echo ""
 
         local choice
@@ -753,6 +815,9 @@ main() {
                 install_flow
                 ;;
             2)
+                install_script
+                ;;
+            3)
                 msg_info "Goodbye!"
                 exit 0
                 ;;
