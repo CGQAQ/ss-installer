@@ -15,7 +15,7 @@ SERVICE_NAME="shadowsocks-rust-server"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 BINARY_NAMES=("ssserver" "sslocal" "ssmanager" "ssurl" "ssservice")
 DEFAULT_PORT=8388
-SCRIPT_VERSION="1.3.0"
+SCRIPT_VERSION="1.4.0"
 DEFAULT_CIPHER="2022-blake3-aes-256-gcm"
 TEMP_DIR=""
 
@@ -712,6 +712,23 @@ install_script() {
     msg_info "You can now run: ss-installer"
 }
 
+upgrade_script() {
+    local target="/usr/bin/ss-installer"
+    local url="https://raw.githubusercontent.com/CGQAQ/ss-installer/main/install.sh"
+
+    msg_info "Downloading latest ss-installer..."
+    if curl -fsSL -o "${target}.tmp" "${url}"; then
+        install -m 755 "${target}.tmp" "${target}"
+        rm -f "${target}.tmp"
+        local new_ver
+        new_ver="$(grep '^SCRIPT_VERSION=' "${target}" | sed 's/SCRIPT_VERSION="//;s/"//')"
+        msg_success "Upgraded to v${new_ver}"
+    else
+        rm -f "${target}.tmp"
+        msg_error "Failed to download latest version."
+    fi
+}
+
 prompt_install_script() {
     msg_step "[Step 9/10] Install Script"
     echo ""
@@ -742,13 +759,20 @@ main() {
     if [[ "${is_installed}" == true ]]; then
         show_existing_config || true
 
+        local script_installed=false
+        [[ -f /usr/bin/ss-installer ]] && script_installed=true
+
         echo -e "${BOLD}Menu:${NC}"
         echo "  1) Start service"
         echo "  2) Stop service"
         echo "  3) Restart service"
         echo "  4) Enable auto-start on boot"
         echo "  5) Disable auto-start on boot"
-        echo "  6) Install this script to /usr/bin/ss-installer"
+        if [[ "${script_installed}" == true ]]; then
+            echo "  6) Upgrade ss-installer script"
+        else
+            echo "  6) Install this script to /usr/bin/ss-installer"
+        fi
         echo "  7) Reinstall / Reconfigure"
         echo "  8) Uninstall Shadowsocks 2022"
         echo "  9) Exit"
@@ -780,7 +804,11 @@ main() {
                 msg_success "Auto-start disabled."
                 ;;
             6)
-                install_script
+                if [[ "${script_installed}" == true ]]; then
+                    upgrade_script
+                else
+                    install_script
+                fi
                 ;;
             7)
                 install_flow
@@ -800,9 +828,16 @@ main() {
                 ;;
         esac
     else
+        local script_installed=false
+        [[ -f /usr/bin/ss-installer ]] && script_installed=true
+
         echo -e "${BOLD}Menu:${NC}"
         echo "  1) Install Shadowsocks 2022"
-        echo "  2) Install this script to /usr/bin/ss-installer"
+        if [[ "${script_installed}" == true ]]; then
+            echo "  2) Upgrade ss-installer script"
+        else
+            echo "  2) Install this script to /usr/bin/ss-installer"
+        fi
         echo "  3) Exit"
         echo ""
 
@@ -815,7 +850,11 @@ main() {
                 install_flow
                 ;;
             2)
-                install_script
+                if [[ "${script_installed}" == true ]]; then
+                    upgrade_script
+                else
+                    install_script
+                fi
                 ;;
             3)
                 msg_info "Goodbye!"
