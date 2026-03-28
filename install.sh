@@ -705,7 +705,7 @@ install_flow() {
 
 install_script() {
     local target="/usr/bin/ss-installer"
-    local url="https://raw.githubusercontent.com/CGQAQ/ss-installer/main/install.sh"
+    local url="https://raw.githubusercontent.com/CGQAQ/ss-installer/main/install.sh?t=$(date +%s)"
 
     msg_info "Downloading ss-installer..."
     if curl -fsSL -o "${target}.tmp" "${url}"; then
@@ -721,7 +721,7 @@ install_script() {
 
 upgrade_script() {
     local target="/usr/bin/ss-installer"
-    local url="https://raw.githubusercontent.com/CGQAQ/ss-installer/main/install.sh"
+    local url="https://raw.githubusercontent.com/CGQAQ/ss-installer/main/install.sh?t=$(date +%s)"
 
     msg_info "Downloading latest ss-installer..."
     if curl -fsSL -o "${target}.tmp" "${url}"; then
@@ -746,9 +746,110 @@ prompt_install_script() {
     fi
 }
 
+# --- Help ---------------------------------------------------------------------
+
+show_help() {
+    echo "Usage: $(basename "$0") [COMMAND]"
+    echo ""
+    echo "Shadowsocks-Rust 2022 Installer v${SCRIPT_VERSION}"
+    echo ""
+    echo "Commands:"
+    echo "  install       Install Shadowsocks 2022 (interactive wizard)"
+    echo "  uninstall     Uninstall Shadowsocks 2022"
+    echo "  start         Start the shadowsocks service"
+    echo "  stop          Stop the shadowsocks service"
+    echo "  restart       Restart the shadowsocks service"
+    echo "  enable        Enable auto-start on boot"
+    echo "  disable       Disable auto-start on boot"
+    echo "  status        Show current configuration and service status"
+    echo "  upgrade       Upgrade the ss-installer script"
+    echo ""
+    echo "Options:"
+    echo "  -h, --help    Show this help message and exit"
+    echo ""
+    echo "Run without arguments to launch the interactive menu."
+}
+
 # --- Main Menu ----------------------------------------------------------------
 
 main() {
+    case "${1:-}" in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        start)
+            check_root
+            systemctl start "${SERVICE_NAME}"
+            msg_success "Service started."
+            exit 0
+            ;;
+        stop)
+            check_root
+            systemctl stop "${SERVICE_NAME}"
+            msg_success "Service stopped."
+            exit 0
+            ;;
+        restart)
+            check_root
+            systemctl restart "${SERVICE_NAME}"
+            msg_success "Service restarted."
+            exit 0
+            ;;
+        enable)
+            check_root
+            systemctl enable "${SERVICE_NAME}" --quiet
+            msg_success "Auto-start enabled."
+            exit 0
+            ;;
+        disable)
+            check_root
+            systemctl disable "${SERVICE_NAME}" --quiet
+            msg_success "Auto-start disabled."
+            exit 0
+            ;;
+        status)
+            check_root
+            detect_os
+            detect_arch
+            detect_distro
+            detect_libc
+            show_banner
+            if ! show_existing_config; then
+                msg_info "Shadowsocks is not installed."
+            fi
+            exit 0
+            ;;
+        install)
+            check_root
+            detect_os
+            detect_arch
+            detect_distro
+            detect_libc
+            show_banner
+            install_dependencies
+            install_flow
+            exit 0
+            ;;
+        uninstall)
+            check_root
+            detect_os
+            detect_arch
+            detect_distro
+            detect_libc
+            show_banner
+            if confirm "Are you sure you want to uninstall?"; then
+                uninstall
+            fi
+            exit 0
+            ;;
+        upgrade)
+            check_root
+            upgrade_script
+            exit 0
+            ;;
+    esac
+
     check_root
     detect_os
     detect_arch
