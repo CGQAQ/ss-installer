@@ -15,6 +15,7 @@ SERVICE_NAME="shadowsocks-rust-server"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 BINARY_NAMES=("ssserver" "sslocal" "ssmanager" "ssurl" "ssservice")
 DEFAULT_PORT=8388
+SCRIPT_VERSION="1.0.0"
 DEFAULT_CIPHER="2022-blake3-aes-256-gcm"
 TEMP_DIR=""
 
@@ -77,7 +78,8 @@ show_banner() {
   ___) |___) |  | || | | \__ \ || (_| | | |  __/ |
  |____/|____/  |___|_| |_|___/\__\__,_|_|_|\___|_|
 BANNER
-    echo -e "                                        by CGQAQ${NC}"
+    echo -e "                                        by CGQAQ"
+    echo -e "                                        v${SCRIPT_VERSION}${NC}"
     echo ""
 }
 
