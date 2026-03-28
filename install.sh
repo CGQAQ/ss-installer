@@ -15,7 +15,7 @@ SERVICE_NAME="shadowsocks-rust-server"
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 BINARY_NAMES=("ssserver" "sslocal" "ssmanager" "ssurl" "ssservice")
 DEFAULT_PORT=8388
-SCRIPT_VERSION="1.4.1"
+SCRIPT_VERSION="1.5.0"
 DEFAULT_CIPHER="2022-blake3-aes-256-gcm"
 TEMP_DIR=""
 
